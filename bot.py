@@ -4,10 +4,13 @@ from datetime import datetime
 BOT_TOKEN = "8197050727:AAHwO3EJufe60a990ZlilVkZaBocC_3xb_E"
 CHAT_ID   = "8304161970"
 
-DOJI_SIZE = 0.1
+DOJI_SIZE = 0.5
 STOCH_LEN = 14
 OB_LEVEL  = 60
 OS_LEVEL  = 40
+SL_PIPS   = 25
+TP1_PIPS  = 60
+TP2_PIPS  = 90
 
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -45,7 +48,6 @@ def stoch(ha_h, ha_l, ha_c):
     return k
 
 prev_signal = None
-print("✅ DXB Bot يعمل 24/7")
 send_telegram("✅ <b>DXB 1.3 Bot يعمل 24/7!</b>\nيراقب XAUUSDT · 5 دقائق · Heikin Ashi")
 
 while True:
@@ -58,8 +60,8 @@ while True:
 
         last_signal = None
         for i in range(4, len(ha_c)-1):
-            body  = abs(ha_c[i-2] - ha_o[i-2])
-            rng   = ha_h[i-2] - ha_l[i-2]
+            body    = abs(ha_c[i-2] - ha_o[i-2])
+            rng     = ha_h[i-2] - ha_l[i-2]
             is_doji = rng > 0 and body <= rng * DOJI_SIZE
             stoch_buy  = k[i-2] <= OS_LEVEL or k[i-3] <= OS_LEVEL
             stoch_sell = k[i-2] >= OB_LEVEL or k[i-3] >= OB_LEVEL
@@ -72,15 +74,31 @@ while True:
             sig_key = f"{last_signal[0]}_{last_signal[1]}"
             if sig_key != prev_signal:
                 prev_signal = sig_key
-                emoji = "🟢" if last_signal[0] == "buy" else "🔴"
-                label = "شراء BUY" if last_signal[0] == "buy" else "بيع SELL"
-                msg = (f"{emoji} <b>إشارة {label}</b>\n\n"
-                       f"💰 السعر: <code>{price:.2f}</code>\n"
-                       f"📊 Stoch: <code>{k[-2]:.1f}</code>\n"
-                       f"⏰ {now}")
+                sig = last_signal[0]
+                emoji = "🟢" if sig == "buy" else "🔴"
+                label = "شراء BUY" if sig == "buy" else "بيع SELL"
+                pip = 0.1
+
+                if sig == "buy":
+                    sl  = round(price - SL_PIPS  * pip, 2)
+                    tp1 = round(price + TP1_PIPS * pip, 2)
+                    tp2 = round(price + TP2_PIPS * pip, 2)
+                else:
+                    sl  = round(price + SL_PIPS  * pip, 2)
+                    tp1 = round(price - TP1_PIPS * pip, 2)
+                    tp2 = round(price - TP2_PIPS * pip, 2)
+
+                msg = (
+                    f"{emoji} <b>إشارة {label} — XAUUSD</b>\n\n"
+                    f"💰 الدخول: <code>{price:.2f}</code>\n"
+                    f"🎯 TP1: <code>{tp1:.2f}</code> ({TP1_PIPS} نقطة)\n"
+                    f"🎯 TP2: <code>{tp2:.2f}</code> ({TP2_PIPS} نقطة)\n"
+                    f"🛑 SL:  <code>{sl:.2f}</code> ({SL_PIPS} نقطة)\n"
+                    f"⏰ {now}"
+                )
                 send_telegram(msg)
-                print(f"[{now}] ✅ {label} — {price:.2f}")
-        
+                print(f"[{now}] ✅ {label} | الدخول: {price:.2f} | TP1: {tp1} | TP2: {tp2} | SL: {sl}")
+
         print(f"[{now}] مراقبة... {price:.2f} | K: {k[-2]:.1f}")
 
     except Exception as e:
